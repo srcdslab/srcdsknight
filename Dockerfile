@@ -6,4 +6,4 @@ COPY . /app
 
 RUN pip install --no-cache-dir --prefer-binary .
 
-CMD ["srcdsknight"]
+ENTRYPOINT ["srcdsknight"]
