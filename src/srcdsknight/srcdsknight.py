@@ -26,7 +26,8 @@ def download_dependency(
     validtar = False
     try:
         if os.path.exists(f"{cachePath}/{filename}"):
-            tarfile.open(f"{cachePath}/{filename}")
+            my_tar = tarfile.open(f"{cachePath}/{filename}")
+            my_tar.close()
             validtar = True
     except tarfile.ReadError:
         pass
