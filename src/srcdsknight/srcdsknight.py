@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import subprocess
 import tarfile
 import time
 from typing import Any, Dict
@@ -153,6 +154,14 @@ def install_dependencies(*, config: Dict[str, Any], sync: bool) -> None:
     packagePath = f"{rootPath}/package"
 
     logger.info(f"Installing dependencies in <{installPath}>")
+
+    if (
+        subprocess.run(
+            ["git", "config", "--global", "--add", "safe.directory", installPath]
+        ).returncode
+        != 0
+    ):
+        logger.warn("Could not set target repository as a safe git path")
 
     if not os.path.exists(installPath):
         os.makedirs(installPath)
