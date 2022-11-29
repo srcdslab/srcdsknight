@@ -1,5 +1,7 @@
 FROM frolvlad/alpine-python3
 
+RUN apk add git
+
 WORKDIR /app
 
 COPY . /app

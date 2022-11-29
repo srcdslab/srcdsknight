@@ -4,11 +4,15 @@ import logging
 import os
 import shutil
 import tarfile
+import time
 from typing import Any, Dict
 
 import click
+import git
 import requests
 import yaml
+from git.remote import FetchInfo
+from git.repo.base import Repo
 
 logger = logging.getLogger(__name__)
 
@@ -23,22 +27,35 @@ def download_dependency(
     skipFailedDownload: bool,
 ) -> bool:
 
-    validtar = False
-    try:
-        if os.path.exists(f"{cachePath}/{filename}"):
-            my_tar = tarfile.open(f"{cachePath}/{filename}")
-            my_tar.close()
-            validtar = True
-    except tarfile.ReadError:
-        pass
+    is_valid = False
+    if os.path.exists(f"{cachePath}/{filename}"):
+        if "tar.gz" in fileextension:
+            try:
+                my_tar = tarfile.open(f"{cachePath}/{filename}")
+                my_tar.close()
+                is_valid = True
+            except tarfile.ReadError:
+                pass
+        elif "git" in fileextension:
+            repo = git.Repo(f"{cachePath}/{filename}")
+            fetchinfo = repo.remotes.origin.pull()
+            logger.info(
+                f"Pull result flag of <{cachePath}/{filename}>: {fetchinfo[0].flags}"
+            )
+            if fetchinfo[0].flags == FetchInfo.HEAD_UPTODATE:
+                return False
+            is_valid = True
 
-    if validtar and cache:
+    if is_valid and cache:
         logger.info(f"Skipping existing cache for {fileextension} {downloadURL}")
     else:
         logger.info(f"Downloading <{downloadURL}> into <{cachePath}/{filename}>")
         try:
-            r = requests.get(downloadURL, allow_redirects=True)
-            open(f"{cachePath}/{filename}", 'wb').write(r.content)
+            if "tar.gz" in fileextension:
+                r = requests.get(downloadURL, allow_redirects=True)
+                open(f"{cachePath}/{filename}", 'wb').write(r.content)
+            elif "git" in fileextension:
+                Repo.clone_from(downloadURL, f"{cachePath}/{filename}")
         except Exception as exc:
             if skipFailedDownload:
                 logger.warn(f"Skipping invalid download file <{downloadURL}>")
@@ -49,6 +66,7 @@ def download_dependency(
 
 def extract_dependency(
     *,
+    fileextension: str,
     linkName: str,
     filename: str,
     cache: bool,
@@ -59,19 +77,27 @@ def extract_dependency(
     if os.path.exists(f"{packagePath}/{linkName}") and cache:
         logger.info(f"Skipping existing cache for folder {linkName}")
     else:
-        logger.info(f"Extracting {linkName}")
-        try:
-            my_tar = tarfile.open(f"{cachePath}/{filename}")
-        except tarfile.ReadError as exc:
-            if skipFailedExtract:
-                logger.warn(f"Skipping invalid tar file <cache/{filename}>")
-                return False
-            raise exc
-
-        my_tar.extractall(
-            f"{packagePath}/{linkName}"
-        )  # specify which folder to extract to
-        my_tar.close()
+        logger.info(
+            f"Extracting <{cachePath}/{filename}> into <{packagePath}/{linkName}>"
+        )
+        if "tar.gz" in fileextension:
+            try:
+                my_tar = tarfile.open(f"{cachePath}/{filename}")
+            except tarfile.ReadError as exc:
+                if skipFailedExtract:
+                    logger.warn(f"Skipping invalid tar file <cache/{filename}>")
+                    return False
+                raise exc
+            my_tar.extractall(
+                f"{packagePath}/{linkName}"
+            )  # specify which folder to extract to
+            my_tar.close()
+        elif "git" in fileextension:
+            shutil.copytree(
+                f"{cachePath}/{filename}",
+                f"{packagePath}/{linkName}",
+                dirs_exist_ok=True,
+            )
     return True
 
 
@@ -117,7 +143,8 @@ def install_dependency(
                 )
 
 
-def install_dependencies(*, config: Dict[str, Any]) -> None:
+def install_dependencies(*, config: Dict[str, Any], sync: bool) -> None:
+    mycwd = os.getcwd()
     folders = config['folders']
     directories = folders['directories']
     installPath = os.path.abspath(config['installPath'])
@@ -125,23 +152,33 @@ def install_dependencies(*, config: Dict[str, Any]) -> None:
     cachePath = f"{rootPath}/cache"
     packagePath = f"{rootPath}/package"
 
+    logger.info(f"Installing dependencies in <{installPath}>")
+
     if not os.path.exists(installPath):
         os.makedirs(installPath)
 
     if not os.path.exists(cachePath):
         os.makedirs(cachePath)
 
+    if os.path.exists(packagePath):
+        shutil.rmtree(packagePath)
+
     if not os.path.exists(packagePath):
         os.makedirs(packagePath)
 
     os.chdir(installPath)
 
-    if os.path.exists(packagePath):
-        shutil.rmtree(packagePath)
-
     for linkName, linkConfig in config["links"].items():
+        syncLink = linkConfig.get('sync', False)
+        if sync and not syncLink:
+            continue
+
         downloadURL = linkConfig['url']
-        fileextension = "tar.gz"
+
+        if syncLink:
+            fileextension = "git"
+        else:
+            fileextension = "tar.gz"
         filename = f'{linkName}.{fileextension}'
         cache = config["cache"]["enabled"]
         skipFailedDownload = config["skipFailedDownload"]
@@ -155,6 +192,7 @@ def install_dependencies(*, config: Dict[str, Any]) -> None:
             downloadURL=downloadURL,
             skipFailedDownload=skipFailedDownload,
         ) and extract_dependency(
+            fileextension=fileextension,
             linkName=linkName,
             filename=filename,
             cache=cache,
@@ -173,11 +211,25 @@ def install_dependencies(*, config: Dict[str, Any]) -> None:
     if os.path.exists(packagePath):
         shutil.rmtree(packagePath)
 
+    os.chdir(mycwd)
+
+
+def sync_dependencies(*, config: Dict[str, Any], sync_seconds: int) -> None:
+    while True:
+        install_dependencies(config=config, sync=True)
+        wait_seconds: int = sync_seconds
+        logger.info(f"Next sync in {wait_seconds} seconds")
+        time.sleep(wait_seconds)
+
 
 @click.command()
 @click.option('--config-file', default="config.yml", help='Configuration file path.')
+@click.option('-s', '--sync', is_flag=True, help="Start in sync mode")
+@click.option(
+    '-ss', '--sync-seconds', type=click.INT, help="Sync every X seconds", default=60
+)
 @click.option('-v', '--verbose', count=True, help="Verbosity level")
-def cli(config_file: str, verbose: int) -> None:
+def cli(config_file: str, sync: bool, sync_seconds: int, verbose: int) -> None:
 
     log_level = logging.ERROR
     if verbose > 2:
@@ -198,4 +250,7 @@ def cli(config_file: str, verbose: int) -> None:
 
     logger.debug(f"Config file <{config_file}> loaded")
 
-    install_dependencies(config=config)
+    if not sync:
+        install_dependencies(config=config, sync=sync)
+    else:
+        sync_dependencies(config=config, sync_seconds=sync_seconds)

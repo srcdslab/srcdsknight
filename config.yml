@@ -6,7 +6,7 @@ folders:
   ## @param dependencies.folders.gametype Gametype folder that will be extracted from the dependency archive
   ##
   gametype:
-    path: ""
+    path: "cstrike"
   ## @param dependencies.folders.common Common list of folders that will be extracted from the dependency archive
   ##
   common:
@@ -230,3 +230,8 @@ links:
     url: https://github.com/srcdslab/sm-plugin-VIP-VIPsOnline/releases/download/latest/sm-plugin-VIP_VIPsOnline-latest.tar.gz
   zombiereloaded:
     url: https://github.com/srcdslab/sm-plugin-zombiereloaded/releases/download/latest/sm-plugin-zombiereloaded-latest.tar.gz
+
+  # Configuration files
+  csszepublic:
+    url: https://gitlab.com/counterstrikesource/gamemode/zombieescape/sourcemod/configurations.git
+    sync: true

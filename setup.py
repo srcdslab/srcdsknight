@@ -23,7 +23,7 @@ with open(rel("src", "srcdsknight", "__init__.py")) as f:
         raise RuntimeError("Version marker not found.")
 
 
-dependencies = ["pyyaml", "click", "requests"]
+dependencies = ["pyyaml", "click", "requests", "gitpython"]
 
 extra_dependencies: Dict[str, List[str]] = {}
 
