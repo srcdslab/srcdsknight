@@ -22,7 +22,16 @@ def download_dependency(
     downloadURL: str,
     skipFailedDownload: bool,
 ) -> bool:
-    if os.path.exists(f"{cachePath}/{filename}") and cache:
+
+    validtar = False
+    try:
+        if os.path.exists(f"{cachePath}/{filename}"):
+            tarfile.open(f"{cachePath}/{filename}")
+            validtar = True
+    except tarfile.ReadError:
+        pass
+
+    if validtar and cache:
         logger.info(f"Skipping existing cache for {fileextension} {downloadURL}")
     else:
         logger.info(f"Downloading <{downloadURL}> into <{cachePath}/{filename}>")
