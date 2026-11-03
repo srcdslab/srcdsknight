@@ -29,6 +29,8 @@ def download_dependency(
 ) -> bool:
 
     is_valid = False
+    # The cache is keyed by link name, so remember which URL each archive came from
+    urlFile = f"{cachePath}/{filename}.url"
     if os.path.exists(f"{cachePath}/{filename}"):
         if "tar.gz" in fileextension:
             try:
@@ -37,6 +39,13 @@ def download_dependency(
                 is_valid = True
             except tarfile.ReadError:
                 pass
+            cachedURL = None
+            if os.path.exists(urlFile):
+                with open(urlFile, "r") as file:
+                    cachedURL = file.read().strip()
+            if is_valid and cachedURL != downloadURL:
+                logger.info(f"Cached <{filename}> comes from another URL, downloading again")
+                is_valid = False
         elif "git" in fileextension:
             repo = git.Repo(f"{cachePath}/{filename}")
             fetchinfo = repo.remotes.origin.pull()
@@ -54,7 +63,10 @@ def download_dependency(
         try:
             if "tar.gz" in fileextension:
                 r = requests.get(downloadURL, allow_redirects=True)
+                r.raise_for_status()
                 open(f"{cachePath}/{filename}", 'wb').write(r.content)
+                with open(urlFile, "w") as file:
+                    file.write(downloadURL)
             elif "git" in fileextension:
                 Repo.clone_from(downloadURL, f"{cachePath}/{filename}")
         except Exception as exc:
