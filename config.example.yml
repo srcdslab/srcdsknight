@@ -63,13 +63,13 @@ links:
   physhooks:
     url: https://github.com/srcdslab/sm-ext-physhooks/releases/download/1.0.0/sm-ext-physhooks-1.0.0-linux.tar.gz
   ripext:
-    url: https://github.com/srcdslab/sm-ext-ripext/releases/download/1.3.1/sm-ext-ripext-1.3.1-linux.tar.gz
+    url: https://github.com/srcdslab/sm-ext-ripext/releases/download/v1.3.3/sm-ext-ripext-linux.tar.gz
   sendsnapshotfixer:
     url: https://github.com/srcdslab/sm-ext-sendsnapshotfixer/releases/download/1.0.0/sm-ext-sendsnapshotfixer-1.0.0-linux.tar.gz
   smjansson:
     url: https://github.com/srcdslab/sm-ext-SMJansson/releases/download/2.6.1/sm-ext-SMJansson-2.6.1-linux.tar.gz
   steamworks:
-    url: https://github.com/srcdslab/sm-ext-SteamWorks/releases/download/1.2.3/sm-ext-SteamWorks-1.2.3-linux.tar.gz
+    url: https://github.com/alliedmodders/SM-SteamWorks/releases/download/v1.2.167/SteamWorks-1.2.167-sm1.12-linux.tar.gz
   voice:
     url: https://github.com/srcdslab/sm-ext-voice/releases/download/2.0.0/sm-ext-voice-2.0.0-linux.tar.gz
 
